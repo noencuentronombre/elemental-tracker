@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <style>
+  #studentName, #cardType, #addMode, .button-container,
+  #undoButton, #editButton, #classSwitchBtn,
+  button[onclick*="addCard"], button[onclick*="clearData"],
+  button[onclick*="exportData"], button[onclick*="removeStudent"],
+  .held-by-button, select {
+    display: none !important;
+  }
+</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Elemental Card Tracker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-image: url('https://img.freepik.com/free-vector/hand-drawn-celestial-background_23-2151191740.jpg');
+      background-size: cover;
+      background-position: center;
+      color: white;
+    }
+    .container {
+      width: 90%;
+      margin: auto;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0px 0px 10px gray;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: black;
+    }
+    th, td {
+      border: 1px solid white;
+      padding: 10px;
+      color: white;
+      text-align: center;
+    }
+    th {
+      background-color: #1e2a42;
+      height: 100px;
+    }
+    td {
+      height: 30px;
+    }
+    button {
+      margin: 10px;
+      padding: 10px;
+      cursor: pointer;
+      background: #444;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+    button:hover {
+      background: #666;
+    }
+    img {
+      width: 50px;
+      height: 70px;
+    }
+    .button-container {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .emoji {
+      font-size: 24px;
+    }
+    .token-icon {
+      font-size: 20px;
+      margin: 2px;
+      display: inline-block;
+    }
+    th.held-column, td.held-column {
+      width: 70px;
+      white-space: nowrap;
+    }
+    .held-by-button {
+      font-size: 18px;
+      padding: 2px 6px;
+      background-color: #333;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .indicator {
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    #undoButton {
+      position: absolute;
+      top: 20px;
+      right: 70px;
+      background-color: #312319;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      font-size: 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      z-index: 1000;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+    }
+    #undoButton:hover {
+      background-color: #ff1c1c;
+    }
+    #editButton {
+      position: absolute;
+      top: 70px;
+      right: 70px;
+      background-color: #1d3c34;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      font-size: 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      z-index: 1000;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+    }
+    #editButton:hover {
+      background-color: #1db886;
+    }
+    #classSwitchBtn {
+      position: absolute;
+      top: 20px;
+      left: 70px;
+      background-color: #1e1e1e;
+      color: white;
+      padding: 10px 16px;
+      font-size: 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <button id="undoButton" onclick="undoLastCombo()">UNDO</button>
+  <button id="editButton" onclick="toggleEditMode()">EDIT</button>
+  <button id="classSwitchBtn" onclick="switchClass()">Switch to Year 12</button>
+  <div class="container">
+    <h2>Elemental Card Tracker - <span id="currentClassLabel">Year 7</span></h2>
+    <label for="studentName">Student Name(s):</label>
+    <input type="text" id="studentName" placeholder="Enter names (comma separated)">
+    <label for="cardType">Type:</label>
+    <select id="cardType">
+      <option value="Water">Water</option>
+      <option value="Fire">Fire</option>
+      <option value="Earth">Earth</option>
+      <option value="Air">Air</option>
+      <option value="Lightning">Lightning</option>
+      <option value="Diamond">Diamond</option>
+    </select>
+    <select id="addMode">
+      <option value="token">Add Token</option>
+      <option value="card">Add Card</option>
+    </select>
+    <button onclick="addCard()">Add</button>
+    <div class="button-container">
+      <button onclick="clearData()">Clear All Data</button>
+      <button onclick="exportData()">Export as TSV</button>
+    </div>
+    <div id="comboIndicators" style="display: flex; justify-content: center; gap: 60px; margin-top: 20px; font-size: 18px;">
+      <div onclick="handleComboClick('Shadow')" class="indicator"><span id="shadowIndicator">⚫</span><br>Shadow</div>
+      <div onclick="handleComboClick('Time')" class="indicator"><span id="timeIndicator">⚫</span><br>Time</div>
+      <div onclick="handleComboClick('Metal')" class="indicator"><span id="metalIndicator">⚫</span><br>Metal</div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Student Name</th>
+          <th>Tokens</th>
+          <th>Water<br><img src="water.png"></th>
+          <th>Fire<br><img src="fire.png"></th>
+          <th>Earth<br><img src="earth.png"></th>
+          <th>Air<br><img src="air.png"></th>
+          <th>Lightning<br><img src="lightning.png"></th>
+          <th>Diamond<br><img src="diamond.png"></th>
+          <th>Shadow<br><img src="shadow.png"></th>
+          <th>Time<br><img src="time.png"></th>
+          <th>Metal<br><img src="metal.png"></th>
+          <th class="held-column">Held By</th>
+          <th>Remove</th>
+        </tr>
+      </thead>
+      <tbody id="cardTable"></tbody>
+    </table>
+  </div>
+  <script>
+    let currentClass = 'Year 7';
+    let classData = JSON.parse(localStorage.getItem("classData")) || { 'Year 7': {}, 'Year 12': {} };
+    let studentData = classData[currentClass];
+    let editMode = false;
+
+    const defaultCards = ['Water', 'Fire', 'Earth', 'Air', 'Lightning', 'Diamond', 'Shadow', 'Time', 'Metal'];
+    const tokenTypes = ['Water', 'Fire', 'Earth', 'Air', 'Lightning'];
+    const cardEmojis = { Water: "💧", Fire: "🔥", Earth: "🍃", Air: "🌬️", Lightning: "⚡", Diamond: "💎", Shadow: "🌑", Time: "⏳", Metal: "🚠️" };
+    const tokenIcons = { Water: "💧", Fire: "🔥", Earth: "🍃", Air: "🌪️", Lightning: "⚡" };
+
+    function switchClass() {
+      currentClass = currentClass === 'Year 7' ? 'Year 12' : 'Year 7';
+      document.getElementById('currentClassLabel').textContent = currentClass;
+      document.getElementById('classSwitchBtn').textContent = `Switch to ${currentClass === 'Year 7' ? 'Year 12' : 'Year 7'}`;
+      if (!classData[currentClass]) classData[currentClass] = {};
+      studentData = classData[currentClass];
+      localStorage.setItem("classData", JSON.stringify(classData));
+      updateTable();
+    }
+
+    function toggleEditMode() {
+      editMode = !editMode;
+      if (!editMode) {
+        for (let student in studentData) {
+          let total = 0;
+          defaultCards.forEach(card => total += studentData[student][card] || 0);
+          if (total === 0 && (studentData[student].tokens || []).length === 0) {
+            delete studentData[student];
+          }
+        }
+        localStorage.setItem("classData", JSON.stringify(classData));
+      }
+      updateTable();
+    }
+
+    function updateCardValue(student, card, value) {
+      studentData[student][card] = parseInt(value);
+      localStorage.setItem("classData", JSON.stringify(classData));
+    }
+
+    function addCard() {
+      let names = document.getElementById("studentName").value.trim().split(",").map(n => n.trim());
+      let type = document.getElementById("cardType").value;
+      let mode = document.getElementById("addMode").value;
+      if (!names[0]) return alert("Enter at least one student name.");
+
+      names.forEach(name => {
+        if (!studentData[name]) {
+          studentData[name] = { tokens: [], heldBy: "teacher" };
+          defaultCards.forEach(c => studentData[name][c] = 0);
+        }
+        if (mode === "token") {
+          studentData[name].tokens.push(type);
+        } else {
+          studentData[name][type]++;
+        }
+      });
+
+      localStorage.setItem("classData", JSON.stringify(classData));
+      updateTable();
+    }
+
+    function updateTable() {
+      const table = document.getElementById("cardTable");
+      table.innerHTML = "";
+
+      for (let name in studentData) {
+        const s = studentData[name];
+        let row = `<tr><td>${name}</td>`;
+
+        const tokenCounts = {};
+        (s.tokens || []).forEach(t => tokenCounts[t] = (tokenCounts[t] || 0) + 1);
+        let tokenDisplay = Object.entries(tokenCounts).map(([type, count]) =>
+          `<span class="token-icon">${tokenIcons[type]}${count > 1 ? ' x' + count : ''}</span>`
+        ).join(' ');
+        row += `<td>${tokenDisplay}</td>`;
+
+        tokenTypes.forEach(type => {
+          while ((s.tokens || []).filter(t => t === type).length >= 3) {
+            s.tokens.splice(s.tokens.indexOf(type), 3);
+            s[type]++;
+          }
+        });
+
+        defaultCards.forEach(card => {
+          if (editMode && name !== "CLASS") {
+            row += `<td><select onchange="updateCardValue('${name}', '${card}', this.value)">` +
+              [...Array(11).keys()].map(i => `<option value="${i}" ${i == s[card] ? "selected" : ""}>${i}</option>`).join("") +
+              `</select></td>`;
+          } else {
+            row += `<td>${s[card] > 0 ? `<span class="emoji">${cardEmojis[card]}</span> x${s[card]}` : ""}</td>`;
+          }
+        });
+
+        row += `<td>${name === "CLASS" ? "" : `<button class="held-by-button" onclick="toggleHeldBy('${name}')">${s.heldBy === "student" ? "🧍" : "📥"}</button>`}</td>`;
+        row += `<td>${name === "CLASS" ? "" : `<button onclick="removeStudent('${name}')">❌</button>`}</td>`;
+        table.innerHTML += row;
+        checkCombos();
+      }
+    }
+
+    function toggleHeldBy(name) {
+      studentData[name].heldBy = studentData[name].heldBy === "student" ? "teacher" : "student";
+      localStorage.setItem("classData", JSON.stringify(classData));
+      updateTable();
+    }
+
+    function removeStudent(name) {
+      if (confirm(`Remove ${name}?`)) {
+        delete studentData[name];
+        localStorage.setItem("classData", JSON.stringify(classData));
+        updateTable();
+      }
+    }
+
+    function clearData() {
+      if (confirm("Clear all data?")) {
+        classData[currentClass] = {};
+        studentData = classData[currentClass];
+        localStorage.setItem("classData", JSON.stringify(classData));
+        updateTable();
+      }
+    }
+
+    function exportData() {
+      let tsv = "Student\tTokens\t" + defaultCards.join("\t") + "\tHeld By\n";
+      for (let name in studentData) {
+        const s = studentData[name];
+        const tokenString = (s.tokens || []).join(",");
+        const line = [name, tokenString, ...defaultCards.map(c => s[c] || 0), s.heldBy || ""].join("\t");
+        tsv += line + "\n";
+      }
+      const blob = new Blob([tsv], { type: "text/tab-separated-values" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `${currentClass}_CardTracker.tsv`;
+      link.click();
+    }
+
+    function undoLastCombo() {
+      alert("Undo feature not yet implemented.");
+    }
+
+   updateTable();
+    function checkCombos() {
+    const total = { Water: 0, Fire: 0, Earth: 0, Air: 0, Lightning: 0, Diamond: 0 };
+    
+    for (let student in studentData) {
+        for (let key in total) {
+            total[key] += studentData[student][key] || 0;
+        }
+    }
+
+    function canMakeCombo(requirements) {
+        let diamonds = total.Diamond;
+        for (let card in requirements) {
+            let needed = requirements[card];
+            if (total[card] >= needed) continue;
+            let missing = needed - total[card];
+            if (diamonds >= missing) {
+                diamonds -= missing;
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    const shadowCombo = { Lightning: 2, Air: 1, Fire: 2 };
+    const timeCombo = { Air: 3, Fire: 2 };
+    const metalCombo = { Water: 2, Earth: 2, Air: 1 };
+
+    document.getElementById("shadowIndicator").textContent = canMakeCombo(shadowCombo) ? "🟢" : "⚫";
+    document.getElementById("timeIndicator").textContent = canMakeCombo(timeCombo) ? "🟢" : "⚫";
+    document.getElementById("metalIndicator").textContent = canMakeCombo(metalCombo) ? "🟢" : "⚫";
+}
+
+</script>
+</body>
+</html>
