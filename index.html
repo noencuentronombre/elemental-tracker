@@ -133,12 +133,15 @@
       z-index: 1000;
     }
   </style>
+
+  <!-- Firebase SDKs (compat version) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
   <button id="undoButton" onclick="undoLastCombo()">UNDO</button>
   <button id="editButton" onclick="toggleEditMode()">EDIT</button>
   <button id="classSwitchBtn" onclick="switchClass()">Switch to Year 12</button>
-
   <div class="container">
     <h2>Elemental Card Tracker - <span id="currentClassLabel">Year 7</span></h2>
     <label for="studentName">Student Name(s):</label>
@@ -157,18 +160,15 @@
       <option value="card">Add Card</option>
     </select>
     <button onclick="addCard()">Add</button>
-
     <div class="button-container">
       <button onclick="clearData()">Clear All Data</button>
       <button onclick="exportData()">Export as TSV</button>
     </div>
-
     <div id="comboIndicators" style="display: flex; justify-content: center; gap: 60px; margin-top: 20px; font-size: 18px;">
       <div onclick="handleComboClick('Shadow')" class="indicator"><span id="shadowIndicator">⚫</span><br>Shadow</div>
       <div onclick="handleComboClick('Time')" class="indicator"><span id="timeIndicator">⚫</span><br>Time</div>
       <div onclick="handleComboClick('Metal')" class="indicator"><span id="metalIndicator">⚫</span><br>Metal</div>
     </div>
-
     <table>
       <thead>
         <tr>
@@ -191,25 +191,21 @@
     </table>
   </div>
 
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
-
-  <script>
+<script>
+  // Your Firebase config here - REPLACE with your real config!
   const firebaseConfig = {
-    apiKey: "AIzaSyBEr6Zg5Al6bSl8mxWJQQrqBJX84WMHBtI",
-    authDomain: "elementalcards3.firebaseapp.com",
-    projectId: "elementalcards3",
-    storageBucket: "elementalcards3.firebasestorage.app",
-    messagingSenderId: "811010736419",
-    appId: "1:811010736419:web:7fe616fd9ed1d30d648c96"
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    // Add other config fields if needed
   };
-  const app = firebase.initializeApp(firebaseConfig);
+
+  // Initialize Firebase and Firestore
+  firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
   let currentClass = 'Year 7';
-  let classData = { 'Year 7': {}, 'Year 12': {} };
-  let studentData = classData[currentClass];
+  let studentData = {};
   let editMode = false;
 
   const defaultCards = ['Water', 'Fire', 'Earth', 'Air', 'Lightning', 'Diamond', 'Shadow', 'Time', 'Metal'];
@@ -217,24 +213,65 @@
   const cardEmojis = { Water: "💧", Fire: "🔥", Earth: "🍃", Air: "🌬️", Lightning: "⚡", Diamond: "💎", Shadow: "🌑", Time: "⏳", Metal: "🚠️" };
   const tokenIcons = { Water: "💧", Fire: "🔥", Earth: "🍃", Air: "🌪️", Lightning: "⚡" };
 
+  // Load data from Firestore on page load
   async function loadData() {
-    const doc = await db.collection("tracker").doc("cardData").get();
-    if (doc.exists) {
-      classData = doc.data();
-      studentData = classData[currentClass];
+    try {
+      const doc = await db.collection("tracker").doc(currentClass).get();
+      if (doc.exists) {
+        studentData = doc.data();
+      } else {
+        studentData = {};
+      }
+      updateTable();
+    } catch (error) {
+      alert("Error loading data from Firestore: " + error.message);
+      studentData = {};
       updateTable();
     }
   }
 
+  // Save current studentData to Firestore
   async function saveData() {
-    await db.collection("tracker").doc("cardData").set(classData);
+    try {
+      await db.collection("tracker").doc(currentClass).set(studentData);
+    } catch (error) {
+      alert("Error saving data to Firestore: " + error.message);
+    }
   }
 
-  function addCard() {
+  function switchClass() {
+    currentClass = currentClass === 'Year 7' ? 'Year 12' : 'Year 7';
+    document.getElementById('currentClassLabel').textContent = currentClass;
+    document.getElementById('classSwitchBtn').textContent = `Switch to ${currentClass === 'Year 7' ? 'Year 12' : 'Year 7'}`;
+    loadData();
+  }
+
+  function toggleEditMode() {
+    editMode = !editMode;
+    if (!editMode) {
+      for (let student in studentData) {
+        let total = 0;
+        defaultCards.forEach(card => total += studentData[student][card] || 0);
+        if (total === 0 && (studentData[student].tokens || []).length === 0) {
+          delete studentData[student];
+        }
+      }
+      saveData();
+    }
+    updateTable();
+  }
+
+  function updateCardValue(student, card, value) {
+    studentData[student][card] = parseInt(value);
+    saveData();
+  }
+
+  async function addCard() {
     let names = document.getElementById("studentName").value.trim().split(",").map(n => n.trim());
     let type = document.getElementById("cardType").value;
     let mode = document.getElementById("addMode").value;
     if (!names[0]) return alert("Enter at least one student name.");
+
     names.forEach(name => {
       if (!studentData[name]) {
         studentData[name] = { tokens: [], heldBy: "teacher" };
@@ -246,16 +283,8 @@
         studentData[name][type]++;
       }
     });
-    updateTable();
-    saveData();
-  }
 
-  function switchClass() {
-    currentClass = currentClass === 'Year 7' ? 'Year 12' : 'Year 7';
-    document.getElementById('currentClassLabel').textContent = currentClass;
-    document.getElementById('classSwitchBtn').textContent = `Switch to ${currentClass === 'Year 7' ? 'Year 12' : 'Year 7'}`;
-    if (!classData[currentClass]) classData[currentClass] = {};
-    studentData = classData[currentClass];
+    await saveData();
     updateTable();
   }
 
@@ -274,6 +303,7 @@
       ).join(' ');
       row += `<td>${tokenDisplay}</td>`;
 
+      // Convert tokens to cards if 3 tokens of same type
       tokenTypes.forEach(type => {
         while ((s.tokens || []).filter(t => t === type).length >= 3) {
           s.tokens.splice(s.tokens.indexOf(type), 3);
@@ -297,31 +327,25 @@
     }
   }
 
-  function updateCardValue(student, card, value) {
-    studentData[student][card] = parseInt(value);
-    saveData();
-  }
-
-  function toggleHeldBy(name) {
+  async function toggleHeldBy(name) {
     studentData[name].heldBy = studentData[name].heldBy === "student" ? "teacher" : "student";
+    await saveData();
     updateTable();
-    saveData();
   }
 
-  function removeStudent(name) {
+  async function removeStudent(name) {
     if (confirm(`Remove ${name}?`)) {
       delete studentData[name];
+      await saveData();
       updateTable();
-      saveData();
     }
   }
 
-  function clearData() {
+  async function clearData() {
     if (confirm("Clear all data?")) {
-      classData[currentClass] = {};
-      studentData = classData[currentClass];
+      studentData = {};
+      await saveData();
       updateTable();
-      saveData();
     }
   }
 
@@ -341,19 +365,21 @@
   }
 
   function undoLastCombo() {
-    alert("Undo feature not implemented in this version.");
+    alert("Undo feature not yet implemented.");
   }
 
-  function toggleEditMode() {
-    editMode = !editMode;
-    updateTable();
+  // You need to define handleComboClick for your combo buttons or remove if not used
+  function handleComboClick(name) {
+    alert(`Combo '${name}' clicked. Functionality not implemented yet.`);
   }
 
-  function handleComboClick(comboType) {
-    alert(`Combo clicked: ${comboType}`);
+  // Initial load
+  window.onload = () => {
+    document.getElementById('currentClassLabel').textContent = currentClass;
+    document.getElementById('classSwitchBtn').textContent = `Switch to Year 12`;
+    loadData();
   }
-
-  loadData();
 </script>
+
 </body>
 </html>
