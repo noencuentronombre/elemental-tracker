@@ -5,14 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Elemental Card Tracker (Student View)</title>
   <style>
-    #studentName, #cardType, #addMode, .button-container,
+    /* Hide all interactive UI elements */
     #undoButton, #editButton, #classSwitchBtn,
-    button[onclick*="addCard"], button[onclick*="clearData"],
-    button[onclick*="exportData"], button[onclick*="removeStudent"],
-    .held-by-button, select {
+    #studentName, #cardType, #addMode,
+    .button-container, .held-by-button,
+    button[onclick*="addCard"],
+    button[onclick*="clearData"],
+    button[onclick*="removeStudent"],
+    button[onclick*="exportData"],
+    select {
       display: none !important;
     }
-    /* All other styles from the teacher version */
+
     body {
       font-family: Arial, sans-serif;
       text-align: center;
@@ -21,6 +25,7 @@
       background-position: center;
       color: white;
     }
+
     .container {
       width: 90%;
       margin: auto;
@@ -29,50 +34,81 @@
       border-radius: 10px;
       box-shadow: 0px 0px 10px gray;
     }
+
     table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 20px;
       background: black;
     }
+
     th, td {
       border: 1px solid white;
       padding: 10px;
       color: white;
       text-align: center;
     }
+
     th {
       background-color: #1e2a42;
       height: 100px;
     }
+
     td {
       height: 30px;
     }
+
     img {
       width: 50px;
       height: 70px;
     }
+
     .emoji {
       font-size: 24px;
     }
+
     .token-icon {
       font-size: 20px;
       margin: 2px;
       display: inline-block;
     }
+
     th.held-column, td.held-column {
       width: 70px;
       white-space: nowrap;
     }
+
+    .indicator {
+      font-size: 18px;
+      margin: 20px;
+    }
+
+    #classSwitchBtn {
+      position: absolute;
+      top: 20px;
+      left: 70px;
+      background-color: #1e1e1e;
+      color: white;
+      padding: 10px 16px;
+      font-size: 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      z-index: 1000;
+    }
   </style>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
+  <button id="classSwitchBtn" onclick="switchClass()">Switch to Year 12</button>
   <div class="container">
     <h2>Elemental Card Tracker - <span id="currentClassLabel">Year 7</span></h2>
-    <div id="comboIndicators" style="display: flex; justify-content: center; gap: 60px; margin-top: 20px; font-size: 18px;">
-      <div><span id="shadowIndicator">⚫</span><br>Shadow</div>
-      <div><span id="timeIndicator">⚫</span><br>Time</div>
-      <div><span id="metalIndicator">⚫</span><br>Metal</div>
+    <div id="comboIndicators" style="display: flex; justify-content: center; gap: 60px; margin-top: 20px;">
+      <div class="indicator"><span id="shadowIndicator">⚫</span><br>Shadow</div>
+      <div class="indicator"><span id="timeIndicator">⚫</span><br>Time</div>
+      <div class="indicator"><span id="metalIndicator">⚫</span><br>Metal</div>
     </div>
     <table>
       <thead>
@@ -96,9 +132,6 @@
     </table>
   </div>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyBEr6Zg5Al6bSl8mxWJQQrqBJX84WMHBtI",
@@ -108,25 +141,37 @@
       messagingSenderId: "811010736419",
       appId: "1:811010736419:web:7fe616fd9ed1d30d648c96"
     };
-    const app = firebase.initializeApp(firebaseConfig);
+
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
     let currentClass = 'Year 7';
-    let classData = { 'Year 7': {}, 'Year 12': {} };
-    let studentData = classData[currentClass];
+    let studentData = {};
 
-    const tokenTypes = ['Water', 'Fire', 'Earth', 'Air', 'Lightning'];
     const defaultCards = ['Water', 'Fire', 'Earth', 'Air', 'Lightning', 'Diamond', 'Shadow', 'Time', 'Metal'];
+    const tokenTypes = ['Water', 'Fire', 'Earth', 'Air', 'Lightning'];
     const cardEmojis = { Water: "💧", Fire: "🔥", Earth: "🍃", Air: "🌬️", Lightning: "⚡", Diamond: "💎", Shadow: "🌑", Time: "⏳", Metal: "🚠️" };
     const tokenIcons = { Water: "💧", Fire: "🔥", Earth: "🍃", Air: "🌪️", Lightning: "⚡" };
 
+    function switchClass() {
+      currentClass = currentClass === 'Year 7' ? 'Year 12' : 'Year 7';
+      document.getElementById('currentClassLabel').textContent = currentClass;
+      document.getElementById('classSwitchBtn').textContent = `Switch to ${currentClass === 'Year 7' ? 'Year 12' : 'Year 7'}`;
+      loadData();
+    }
+
     async function loadData() {
-      const doc = await db.collection("tracker").doc("cardData").get();
-      if (doc.exists) {
-        classData = doc.data();
-        studentData = classData[currentClass];
+      try {
+        const doc = await db.collection("tracker").doc(currentClass).get();
+        if (doc.exists) {
+          studentData = doc.data();
+        } else {
+          studentData = {};
+        }
         updateTable();
-        checkCombos();
+        updateIndicators();
+      } catch (err) {
+        alert("Error loading data: " + err.message);
       }
     }
 
@@ -145,23 +190,16 @@
         ).join(' ');
         row += `<td>${tokenDisplay}</td>`;
 
-        tokenTypes.forEach(type => {
-          while ((s.tokens || []).filter(t => t === type).length >= 3) {
-            s.tokens.splice(s.tokens.indexOf(type), 3);
-            s[type]++;
-          }
-        });
-
         defaultCards.forEach(card => {
           row += `<td>${s[card] > 0 ? `<span class="emoji">${cardEmojis[card]}</span> x${s[card]}` : ""}</td>`;
         });
 
-        row += `<td></td><td></td>`;
+        row += `<td></td><td></td></tr>`;
         table.innerHTML += row;
       }
     }
 
-    function checkCombos() {
+    function updateIndicators() {
       const total = { Water: 0, Fire: 0, Earth: 0, Air: 0, Lightning: 0, Diamond: 0 };
       for (let student in studentData) {
         for (let key in total) {
@@ -184,16 +222,12 @@
         return true;
       }
 
-      const shadowCombo = { Lightning: 2, Air: 1, Fire: 2 };
-      const timeCombo = { Air: 3, Fire: 2 };
-      const metalCombo = { Water: 2, Earth: 2, Air: 1 };
-
-      document.getElementById("shadowIndicator").textContent = canMakeCombo(shadowCombo) ? "🟢" : "⚫";
-      document.getElementById("timeIndicator").textContent = canMakeCombo(timeCombo) ? "🟢" : "⚫";
-      document.getElementById("metalIndicator").textContent = canMakeCombo(metalCombo) ? "🟢" : "⚫";
+      document.getElementById("shadowIndicator").textContent = canMakeCombo({ Lightning: 2, Air: 1, Fire: 2 }) ? "🟢" : "⚫";
+      document.getElementById("timeIndicator").textContent = canMakeCombo({ Air: 3, Fire: 2 }) ? "🟢" : "⚫";
+      document.getElementById("metalIndicator").textContent = canMakeCombo({ Water: 2, Earth: 2, Air: 1 }) ? "🟢" : "⚫";
     }
 
-    loadData();
+    window.onload = loadData;
   </script>
 </body>
 </html>
